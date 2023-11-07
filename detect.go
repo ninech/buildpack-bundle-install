@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/paketo-buildpacks/packit/v2"
 )
@@ -24,6 +25,8 @@ type BuildPlanMetadata struct {
 	Build         bool   `toml:"build"`
 	Launch        bool   `toml:"launch"`
 }
+
+const rubyVersionFile = ".ruby-version"
 
 // Detect will return a packit.DetectFunc that will be invoked during the
 // detect phase of the buildpack lifecycle.
@@ -47,6 +50,13 @@ func Detect(gemfileParser VersionParser) packit.DetectFunc {
 		var versionSource string
 		if mriVersion != "" {
 			versionSource = "Gemfile"
+		} else {
+			// fall back to .ruby-version file
+			rVersion, err := os.ReadFile(filepath.Join(context.WorkingDir, rubyVersionFile))
+			if err == nil {
+				mriVersion = strings.TrimSpace(string(rVersion))
+				versionSource = rubyVersionFile
+			}
 		}
 
 		return packit.DetectResult{
