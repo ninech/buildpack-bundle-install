@@ -127,4 +127,41 @@ func testDetect(t *testing.T, context spec.G, it spec.S) {
 			Expect(err).To(MatchError("some-error"))
 		})
 	})
+
+	context("when the Gemfile has no version it falls back to .ruby-version", func() {
+		it.Before(func() {
+			gemfileParser.ParseVersionCall.Returns.Version = ""
+
+			err := os.WriteFile(filepath.Join(workingDir, ".ruby-version"), []byte("3.2.2\r\n"), 0644)
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		it("requires that version of mri", func() {
+			result, err := detect(packit.DetectContext{
+				WorkingDir: workingDir,
+			})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result.Plan).To(Equal(packit.BuildPlan{
+				Provides: []packit.BuildPlanProvision{
+					{Name: "gems"},
+				},
+				Requires: []packit.BuildPlanRequirement{
+					{
+						Name: "bundler",
+						Metadata: bundleinstall.BuildPlanMetadata{
+							Build: true,
+						},
+					},
+					{
+						Name: "mri",
+						Metadata: bundleinstall.BuildPlanMetadata{
+							Version:       "3.2.2",
+							VersionSource: ".ruby-version",
+							Build:         true,
+						},
+					},
+				},
+			}))
+		})
+	})
 }
